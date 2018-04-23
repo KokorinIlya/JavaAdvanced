@@ -1,0 +1,3 @@
+Manifest-Version: 1.0
+Main-class: ru.ifmo.rain.kokorin.implementor.Implementor
+Class-path: .\..\..\..\lib\*.jar .\..\..\..\artifacts\JarImplementorTest.jar
