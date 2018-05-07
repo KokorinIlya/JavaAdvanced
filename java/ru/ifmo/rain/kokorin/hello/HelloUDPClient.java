@@ -22,6 +22,15 @@ public class HelloUDPClient implements HelloClient {
     public void run(String address, int port, String prefix, int threads, int perThread) {
         workers = Executors.newFixedThreadPool(threads);
         addTasks(address, port, prefix, threads, perThread);
+
+        /*
+        Способ дождаться завершения всех потоков ExecutorService
+
+        Альтернативой является применение Phaser (добавляем задачу в пул - делаем register,
+        при завершении таски делаем arrive)
+
+        В конце делаем arriveAndAwait, ожидая
+         */
         workers.shutdown();
         try {
             workers.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
@@ -30,7 +39,7 @@ public class HelloUDPClient implements HelloClient {
     }
 
     private void addTasks(String address, int port, String prefix, int threads, int perThread) {
-        InetAddress serverAddress = null;
+        InetAddress serverAddress;
         try {
             serverAddress = InetAddress.getByName(address);
         } catch (UnknownHostException e) {
