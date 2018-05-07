@@ -9,13 +9,33 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Calendar;
 import java.util.stream.Collectors;
 
 public class BookDownloader {
+
+    private static FileVisitor<Path> directoryCleaner = new SimpleFileVisitor<Path>() {
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            Files.delete(file);
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            Files.delete(dir);
+            return FileVisitResult.CONTINUE;
+        }
+    };
+
     private final static String MAIN_PAGE_URL = "https://e.lanbook.com/books";
     private final static String BOOK_URL = "https://e.lanbook.com/book/";
     private final static String BIBL_RECORD_BEGIN = "<div id=\"bibliographic_record\">";
@@ -27,7 +47,8 @@ public class BookDownloader {
     private static final String ERROR_MSG = "running:\n" +
             "BookDownloader --all <folder for storing downloaded files> <file for storing result>\n" +
             "BookDownloader --download <folder for storing downloaded files>\n" +
-            "BookDownloader --parse <folder for storing downloaded files> <file for storing result>";
+            "BookDownloader --parse <folder for storing downloaded files> <file for storing result>\n" +
+            "BookDownloader --clean <path for storing downloaded files>";
 
     private static int MAX_YEAR = Calendar.getInstance().get(Calendar.YEAR);
     private static int MIN_YEAR = MAX_YEAR - 4;
@@ -123,7 +144,10 @@ public class BookDownloader {
                                 if (endIndex == -1) {
                                     return;
                                 }
-                                String bookInfo = oneString.substring(beginIndex + BIBL_RECORD_BEGIN.length(), endIndex);
+                                String bookInfo = oneString.substring(
+                                        beginIndex + BIBL_RECORD_BEGIN.length(),
+                                        endIndex
+                                );
                                 try {
                                     writer.write(bookInfo.trim());
                                     writer.newLine();
@@ -178,6 +202,24 @@ public class BookDownloader {
             Path dirForDownloadedFiles = Paths.get(args[1]);
             Path pathToRes = Paths.get(args[2]);
             parse(dirForDownloadedFiles, pathToRes);
+            return;
+        }
+
+        if (args[0].equals("--clean")) {
+            if (args.length != 2 || args[1] == null) {
+                System.out.println(ERROR_MSG);
+                return;
+            }
+
+            try {
+                Path dirForDownloadFiles = Paths.get(args[1]);
+                Files.walkFileTree(dirForDownloadFiles, directoryCleaner);
+            } catch (InvalidPathException e) {
+                System.err.println("Invalid path to download files " + e.getMessage());
+                return;
+            } catch (IOException e) {
+                System.err.println("Error while cleaning directory " + e.getMessage());
+            }
             return;
         }
 
