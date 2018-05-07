@@ -12,7 +12,7 @@ import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
 
 public class HelloUDPClient implements HelloClient {
 
@@ -20,16 +20,16 @@ public class HelloUDPClient implements HelloClient {
     private static int TIMEOUT = 1000;
 
     public void run(String address, int port, String prefix, int threads, int perThread) {
-        Phaser tasksWaiter = new Phaser();
-        tasksWaiter.register();
         workers = Executors.newFixedThreadPool(threads);
-        addTasks(tasksWaiter, address, port, prefix, threads, perThread);
-        tasksWaiter.arriveAndAwaitAdvance();
-        workers.shutdownNow();
-        // TODO: await termination?
+        addTasks(address, port, prefix, threads, perThread);
+        workers.shutdown();
+        try {
+            workers.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+        } catch (InterruptedException ignored) {
+        }
     }
 
-    private void addTasks(Phaser tasksWaiter, String address, int port, String prefix, int threads, int perThread) {
+    private void addTasks(String address, int port, String prefix, int threads, int perThread) {
         InetAddress serverAddress = null;
         try {
             serverAddress = InetAddress.getByName(address);
@@ -93,10 +93,8 @@ public class HelloUDPClient implements HelloClient {
                     System.err.println("Socket № " + threadNum + " cannot be created: " + e.getMessage());
                 }
 
-                tasksWaiter.arrive();
             };
 
-            tasksWaiter.register();
             workers.submit(task);
         }
 
