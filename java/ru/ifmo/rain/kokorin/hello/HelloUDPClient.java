@@ -32,9 +32,10 @@ public class HelloUDPClient implements HelloClient {
         В конце делаем arriveAndAwait, ожидая
          */
         workers.shutdown();
-        try {
-            workers.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
-        } catch (InterruptedException ignored) {
+        while (!workers.isTerminated()) {
+            try {
+                workers.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+            } catch (InterruptedException ignored) {}
         }
     }
 
@@ -92,8 +93,7 @@ public class HelloUDPClient implements HelloClient {
                                 System.out.println();
                                 break;
                             } catch (IOException e) {
-                                System.err.println("Error receiving datagram " + e.getMessage() + "\n" +
-                                        "Retrying");
+                                System.err.println("Error receiving datagram: " + e.getMessage());
                             }
                         }
 
@@ -109,7 +109,7 @@ public class HelloUDPClient implements HelloClient {
 
     }
 
-    private static String ERROR_MSG = "Running:\n" +
+    private final static String ERROR_MSG = "Running:\n" +
             "HelloUDPClient <host name or address> <port number> " +
             "<request prefix> <number of threads> <number of requests per thread>";
 

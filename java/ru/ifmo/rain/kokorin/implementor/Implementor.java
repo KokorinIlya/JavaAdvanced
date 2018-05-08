@@ -243,12 +243,6 @@ public class Implementor implements Impler, JarImpler {
     private Class<?> token;
 
     /**
-     * Writer, associated with file, where source code of Impl class should be written. All
-     * methods, that prints something into file, will use this writer.
-     */
-    private Writer writer;
-
-    /**
      * Main method, that will be executed.
      * This methods starts implementation, depending on arguments from command line.
      * If method is executed with <tt>-jar</tt> argument, implemented class will be packed in
@@ -422,22 +416,24 @@ public class Implementor implements Impler, JarImpler {
     }
 
     /**
-     * Prints name of the package of the generated class to file with source code of the generated class. <br>
+     * Returns name of the package of the generated class, that will be printed to file with source
+     * code of the generated class. <br>
      * Impl class is stored in the package with name, same to given class package's name. <br>
-     * If given class isn't located in the default package, prints concatenation of strings "package " and
-     * name of the given class package name to the file with Impl class source code.
-     * If given class is located in the main package, doesn't print anything.
+     * If given class isn't located in the default package, returns concatenation of strings "package " and
+     * name of the given class package name. <br>
+     * If given class is located in the main package, returns empty string.
      * Impl class will be put to package with name, same to {@link Implementor#token} package name.
-     * @throws IOException if an Output error occurs while writing to file.
+     * @return String, containing name of the package of the given class (if it is located not in default
+     * package), empty string otherwise. The string will be printed to file with source code of
+     * Impl class.
      *
-     * @see Writer
      * @see Class#getPackage()
      */
-    private void printPackage() throws IOException {
+    private String getPackageString() {
         if (token.getPackage() != null) {
-            writer.write("package " + token.getPackage().getName() + ";");
-            writer.write(SKIP_LINE);
+            return "package " + token.getPackage().getName() + ";\n";
         }
+        return "";
     }
 
     /**
@@ -461,92 +457,95 @@ public class Implementor implements Impler, JarImpler {
     }
 
     /**
-     * Method prints list of parameters of some method or constructor, using given writer. <br>
+     * Method returns string, containing list of parameters of some method or constructor. <br>
      * Method uses {@link Implementor#getArgumentString(int, IntFunction)} to create string with
      * given parameters. <br>
      * String looks like "ArgType_0 arg0, ArgType_1 arg1, ..., ArgType_n argn".
      * Canonical names of argument types are used.
      * @param parameters array of parameters of some function or constructor.
-     * @throws IOException if Output error occurs while writing.
+     * @return string, containing list of arguments of some function or constructor. Aforecited
+     * format is used.
      *
-     * @see Writer
      * @see Parameter
-     * @see IOException
      * @see Implementor#getArgumentString(int, IntFunction)
      * @see Class#getCanonicalName()
      */
-    private void printParameters(Parameter[] parameters) throws IOException {
-        String argString = getArgumentString(
+    private String getParametersString(Parameter[] parameters) {
+        return getArgumentString(
                 parameters.length,
                 i -> parameters[i].getType().getCanonicalName() + " arg" + i
         );
-        writer.write(argString);
     }
 
     /**
-     * Method prints list of exceptions of some method or constructor, using given writer. <br>
-     * If array with exceptions is empty, method does not print anything. <br>
-     * Else, it prints string "throws ExceptionType_1, ..., ExceptionType_n". ", " is used
+     * Method returns string, containing list of exceptions of some method or constructor <br>
+     * If array with exceptions is empty, method returns empty string. <br>
+     * Otherwise, returns string "throws ExceptionType_1, ..., ExceptionType_n". ", " is used
      * as decimeter. Canonical names of exception types are used.
      * @param exceptions list of exceptions of some constructor or method.
-     * @throws IOException if Output error occurs while writing.
+     * @return string, containing list of exceptions, thrown by some method or constructor. Aforecited
+     * format is used.
      *
      * @see Class#getCanonicalName()
      */
-    private void printExceptions(Class[] exceptions) throws IOException {
+    private String getExceptionsString(Class[] exceptions) {
         if (exceptions.length == 0) {
-            return;
+            return "";
         }
-        writer.write(" throws ");
-        String exceptionList = Arrays.stream(exceptions)
+        return "throws " + Arrays.stream(exceptions)
                 .map(Class::getCanonicalName)
                 .collect(Collectors.joining(", "));
-        writer.write(exceptionList);
     }
 
     /**
-     * Method prints declaration of some method or constructor using given writer. <br>
+     * Returns declaration of some method or constructor. Declaration is
+     * returned as a string. This string will be printed to a file, containing
+     * source code of Impl class <br>
      * Declaration includes list of parameters of method or constructor, list of exceptions,
      * that may me thrown by this method or constructor and an opening curly brace.
      * @param executable method or constructor, which declaration should be printed.
-     * @throws IOException if Output error occurs, while writing.
+     * @return string, containing declaration of some method or constructor.
+     *
+     * @see Implementor#getParametersString(Parameter[])
+     * @see Implementor#getExceptionsString(Class[])
      */
-    private void printDeclaration(Executable executable) throws IOException {
-        writer.write("(");
-        printParameters(executable.getParameters());
-        writer.write(")");
-        printExceptions(executable.getExceptionTypes());
-        writer.write(" {");
-        writer.write(NEWLINE + DOUBLE_TAB);
+    private String getDeclaration(Executable executable) {
+        return "(" +
+                getParametersString(executable.getParameters()) +
+                ")" +
+                getExceptionsString(executable.getExceptionTypes()) +
+                " {" +
+                NEWLINE +
+                DOUBLE_TAB;
     }
 
     /**
-     * Method prints body of Impl class constructor. Constructor, that will be printed, is public.
-     * The constructor consists of only one line, which is call of constructor of parent
-     * class (super). <br>
+     * Returns string, containing body of Impl class constructor.
+     * Returned constructor is public. The constructor consists of only one line,
+     * which is call of constructor of parent class (super). <br>
      * If parent class is interface (so, it doesn't contain constructors),
      * the method won't be called, generated class will use default constructor, implicitly
      * created in the absence of other constructors.
      * @param constructor constructor to print.
      * @param className name of the class, to which the generated constructor belongs.
-     * @throws IOException if an Output error occurs while writing.
+     * @return String, containing header and body of Impl class.
      *
-     * @see Implementor#printDeclaration(Executable)
+     * @see Implementor#getDeclaration(Executable)
      * @see Implementor#getArgumentString(int, IntFunction)
-     * @see Writer
-     * @see IOException
      */
-    private void printConstructor(Constructor constructor,
-                                          String className) throws IOException {
-        writer.write(TAB + "public " + className);
-        printDeclaration(constructor);
-        writer.write("super(");
+    private String getConstructorString(Constructor constructor, String className) {
+        String header = TAB + "public " + className +
+                getDeclaration(constructor) +
+                "super(";
+
         String superArguments = getArgumentString(
                 constructor.getParameterCount(),
                 i -> "arg" + i
         );
-        writer.write(superArguments + ");" + NEWLINE);
-        writer.write(TAB + "}" + SKIP_LINE);
+
+        String body = superArguments + ");" + NEWLINE +
+                TAB + "}" + SKIP_LINE;
+        return header + body;
     }
 
 
@@ -602,7 +601,7 @@ public class Implementor implements Impler, JarImpler {
     }
 
     /**
-     * Prints implementation of given abstract method, using specified writer. <br>
+     * Returns string, containing implementation of given abstract method. <br>
      * Implementation consists of only one command, performing default value return. <br>
      * Implementation of method returns
      * <ul>
@@ -612,22 +611,20 @@ public class Implementor implements Impler, JarImpler {
      *     <li>nothing, if method returns <tt>void</tt></li>
      *     <li>{@code null}, otherwise</li>
      * </ul>
-     * All of method's modifiers are printed before the implementation body, except
+     * String contains all of method's modifiers, except
      * <ul>
      *     <li>{@code abstract}, because method with body cannot be abstract</li>
      *     <li>{@code transient}, because method cannot be transient</li>
      *     <li>{@code native}, because method implementation is written in Java, not in other languages</li>
      * </ul>
      * @param method abstract method to create implementation for.
-     * @throws IOException if an Output error occurs while writing.
+     * @return String, containing implementation of some method.
      *
      * @see Modifier
      * @see Method
-     * @see Writer
-     * @see IOException
-     * @see Implementor#printDeclaration(Executable)
+     * @see Implementor#getDeclaration(Executable)
      */
-    private void printMethod(Method method) throws IOException {
+    private String getMethodImplementation(Method method) {
         Class resultType = method.getReturnType();
         String modifiers = Modifier.toString(
                 method.getModifiers()
@@ -635,41 +632,46 @@ public class Implementor implements Impler, JarImpler {
                         & ~Modifier.TRANSIENT
                         & ~Modifier.NATIVE
         );
-        writer.write(TAB + modifiers + " " + resultType.getCanonicalName() + " " + method.getName());
-        printDeclaration(method);
-        writer.write("return");
+        String res = TAB + modifiers + " " +
+                resultType.getCanonicalName() +
+                " " + method.getName() +
+                getDeclaration(method) +
+                "return";
 
+        String returnValue;
         if (resultType.equals(void.class)) {
-            writer.write(";");
+            returnValue = ";";
         } else if (resultType.equals(boolean.class)) {
-            writer.write(" false;");
+            returnValue = " false;";
         } else if (resultType.isPrimitive()) {
-            writer.write(" 0;");
+            returnValue = " 0;";
         } else {
-            writer.write(" null;");
+            returnValue = " null;";
         }
-        writer.write(NEWLINE + TAB + "}" + SKIP_LINE);
+        return res + returnValue + NEWLINE + TAB + "}" + SKIP_LINE;
     }
 
     /**
-     * Prints implementations of all abstract methods, declared in {@link Implementor#token} class,
-     * it's superclasses and superinterfaces, using {@link Implementor#printMethod(Method)}. <br>
-     * All implementations are printed one-by-one, using specified writer.
-     * @throws IOException if an Output error occurs while writing.
+     * Returns string, containing implementations of all abstract methods,
+     * declared in {@link Implementor#token} class, it's superclasses and superinterfaces,
+     * using {@link Implementor#getMethodImplementation(Method)}. <br>
+     * All implementations are added to string one-by-one.
      *
-     * @see Writer
-     * @see IOException
+     * @return String, containing implementation of all abstract methods from the given class,
+     * it's superclasses and superinterfaces. Each abstract method is implemented only once.
+     *
      * @see Class
      * @see Implementor#getAbstractMethodsFromSuperclasses()
      * @see Implementor#addMethodsToSet(Method[], Set)
-     * @see Implementor#printMethod(Method)
+     * @see Implementor#getMethodImplementation(Method)
      */
-    private void printMethods() throws IOException {
+    private String getAllMethodsImplementations() {
         Set<MethodWrapper> methods = getAbstractMethodsFromSuperclasses();
         addMethodsToSet(token.getMethods(), methods);
-        for (MethodWrapper methodWrapper : methods) {
-            printMethod(methodWrapper.getMethod());
-        }
+
+        return methods.stream()
+                .map(methodWrapper -> getMethodImplementation(methodWrapper.getMethod()))
+                .collect(Collectors.joining());
     }
 
     /**
@@ -733,10 +735,8 @@ public class Implementor implements Impler, JarImpler {
         Path pathToFile = pathToPackage.resolve(className + ".java");
 
         try (Writer writer = new UnicodeWriter(Files.newBufferedWriter(pathToFile))) {
-            //TODO use java 9 for creating this.writer inside try()
-            this.writer = writer;
 
-            printPackage();
+            writer.write(getPackageString());
             writer.write("public class " + className + " ");
             if (token.isInterface()) {
                 writer.write("implements ");
@@ -745,10 +745,11 @@ public class Implementor implements Impler, JarImpler {
             }
             writer.write(token.getName() + " {" + NEWLINE);
             if (nonPrivateConstructor != null) {
+                writer.write(getConstructorString(nonPrivateConstructor, className));
+            } else {
                 assert (token.isInterface());
-                printConstructor(nonPrivateConstructor, className);
             }
-            printMethods();
+            writer.write(getAllMethodsImplementations());
             writer.write("}");
         } catch (IOException e) {
             throw new ImplerException("Error while writing to output file: " + e.getMessage());

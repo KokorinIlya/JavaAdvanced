@@ -9,6 +9,7 @@ import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 public class HelloUDPServer implements HelloServer {
 
@@ -56,9 +57,7 @@ public class HelloUDPServer implements HelloServer {
             }
         };
 
-        for (int i = 0; i < threads; i++) {
-            workers.submit(task);
-        }
+        Stream.iterate(0, i -> i + 1).limit(threads).forEach(i -> workers.submit(task));
     }
 
     @Override
