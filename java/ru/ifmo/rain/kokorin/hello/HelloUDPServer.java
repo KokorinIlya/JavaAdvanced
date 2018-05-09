@@ -36,7 +36,7 @@ public class HelloUDPServer implements HelloServer {
 
                     String request = Utils.getStringFromPacket(receivePacket);
 
-                    System.out.println("Request received: " + request);
+                    //System.out.println("Request received: " + request);
 
                     String response = "Hello, " + request;
                     byte[] responseBuffer = response.getBytes(StandardCharsets.UTF_8);
@@ -48,7 +48,6 @@ public class HelloUDPServer implements HelloServer {
 
                     socket.send(packetToSend);
 
-                    System.out.println("Response send: " + response);
                 } catch (IOException e) {
                     if (!closed) {
                         System.err.println("Error working with datagram: " + e.getMessage());

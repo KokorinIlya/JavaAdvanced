@@ -20,17 +20,24 @@ public class HelloUDPClient implements HelloClient {
     private static int TIMEOUT = 1000;
 
     public void run(String address, int port, String prefix, int threads, int perThread) {
+        /*prefix = "ЗАПУСКАЕМ \n" +
+                "░ГУСЯ░▄▀▀▀▄░РАБОТЯГИ░░ \n" +
+                "▄███▀░◐░░░▌░░░░░░░ \n" +
+                "░░░░▌░░░░░▐░░░░░░░ \n" +
+                "░░░░▐░░░░░▐░░░░░░░ \n" +
+                "░░░░▌░░░░░▐▄▄░░░░░ \n" +
+                "░░░░▌░░░░▄▀▒▒▀▀▀▀▄ \n" +
+                "░░░▐░░░░▐▒▒▒▒▒▒▒▒▀▀▄ \n" +
+                "░░░▐░░░░▐▄▒▒▒▒▒▒▒▒▒▒▀▄ \n" +
+                "░░░░▀▄░░░░▀▄▒▒▒▒▒▒▒▒▒▒▀▄ \n" +
+                "░░░░░░▀▄▄▄▄▄█▄▄▄▄▄▄▄▄▄▄▄▀▄ \n" +
+                "░░░░░░░░░░░▌▌░▌▌░░░░░ \n" +
+                "░░░░░░░░░░░▌▌░▌▌░░░░░ \n" +
+                "░░░░░░░░░▄▄▌▌▄▌▌░░░░░";*/
+
         workers = Executors.newFixedThreadPool(threads);
         addTasks(address, port, prefix, threads, perThread);
 
-        /*
-        Способ дождаться завершения всех потоков ExecutorService
-
-        Альтернативой является применение Phaser (добавляем задачу в пул - делаем register,
-        при завершении таски делаем arrive)
-
-        В конце делаем arriveAndAwait, ожидая
-         */
         workers.shutdown();
         while (!workers.isTerminated()) {
             try {
@@ -82,15 +89,17 @@ public class HelloUDPClient implements HelloClient {
                                 socket.receive(packetToReceive);
                                 String response = Utils.getStringFromPacket(packetToReceive);
 
-                                System.out.println("Response received " + response);
+                                System.out.println("Request sent: " + request);
+                                System.out.println("Response received: " + response);
 
                                 if (!response.contains(request)) {
-                                    System.out.println("Response rejected " + response);
+                                    System.out.println("Response rejected: " + response +
+                                    "\n________________");
                                     continue;
                                 }
 
-                                System.out.println("Response accepted:" + response);
-                                System.out.println();
+                                System.out.println("Response accepted: " + response +
+                                "\n________________");
                                 break;
                             } catch (IOException e) {
                                 System.err.println("Error receiving datagram: " + e.getMessage());
