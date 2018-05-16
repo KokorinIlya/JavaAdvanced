@@ -3,6 +3,7 @@ package ru.ifmo.rain.kokorin.walk;
 import java.io.BufferedInputStream;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,7 +36,7 @@ class FileVisitor extends SimpleFileVisitor<Path> {
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attr) {
-        try (BufferedInputStream reader = new BufferedInputStream(Files.newInputStream(file))) {
+        try (InputStream reader = Files.newInputStream(file)) {
             int h = START_VALUE;
             byte[] buffer = new byte[BUFFER_LEN];
             int result;

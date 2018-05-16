@@ -66,10 +66,10 @@ public class HelloUDPClient implements HelloClient {
                 try (DatagramSocket socket = new DatagramSocket()) {
                     socket.setSoTimeout(TIMEOUT);
 
-                    for (int requestNum = 0; requestNum < perThread; requestNum++) {
+                    byte[] bufferToReceive = new byte[socket.getReceiveBufferSize()];
+                    DatagramPacket packetToReceive = Utils.makePacketToReceive(bufferToReceive);
 
-                        byte[] bufferToReceive = new byte[socket.getReceiveBufferSize()];
-                        DatagramPacket packetToReceive = Utils.makePacketToReceive(bufferToReceive);
+                    for (int requestNum = 0; requestNum < perThread; requestNum++) {
 
                         String request = prefix + threadNum + "_" + requestNum;
                         byte[] requestBuffer = request.getBytes(StandardCharsets.UTF_8);
