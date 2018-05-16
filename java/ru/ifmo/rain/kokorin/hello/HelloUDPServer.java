@@ -18,8 +18,6 @@ public class HelloUDPServer implements HelloServer {
     private boolean closed = false;
 
     public void start(int port, int threads) {
-        workers = Executors.newFixedThreadPool(threads);
-
         try {
             socket = new DatagramSocket(port);
         } catch (SocketException e) {
@@ -27,6 +25,8 @@ public class HelloUDPServer implements HelloServer {
             return;
         }
 
+        workers = Executors.newFixedThreadPool(threads);
+        
         Runnable task = () -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {

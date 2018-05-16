@@ -57,6 +57,8 @@ public class HelloUDPClient implements HelloClient {
 
         InetSocketAddress addressAndPort = new InetSocketAddress(serverAddress, port);
 
+        System.out.println(addressAndPort);
+
         for (int i = 0; i < threads; i++) {
             final int threadNum = i;
 
@@ -92,7 +94,7 @@ public class HelloUDPClient implements HelloClient {
                                 System.out.println("Request sent: " + request);
                                 System.out.println("Response received: " + response);
 
-                                if (!response.contains(request)) {
+                                if (!response.contains(request) || response.equals(request)) {
                                     System.out.println("Response rejected: " + response +
                                     "\n________________");
                                     continue;
