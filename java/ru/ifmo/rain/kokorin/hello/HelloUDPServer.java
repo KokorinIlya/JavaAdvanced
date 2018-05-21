@@ -7,61 +7,85 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Stream;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class HelloUDPServer implements HelloServer {
 
     private DatagramSocket socket;
-    private ExecutorService workers;
+    private ExecutorService senders;
+    private ExecutorService listener;
     private boolean closed = false;
+    private static int QUEUE_CAPACITY = 1000;
+    private int requestBufferSize;
 
     public void start(int port, int threads) {
         try {
             socket = new DatagramSocket(port);
+            requestBufferSize = socket.getReceiveBufferSize();
         } catch (SocketException e) {
             System.err.println("Error creating socket for port № " + port + "stopping");
             return;
         }
 
-        workers = Executors.newFixedThreadPool(threads);
-        
-        Runnable task = () -> {
+        listener = Executors.newSingleThreadExecutor();
+        senders = new ThreadPoolExecutor(
+                threads,
+                threads,
+                0,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(QUEUE_CAPACITY),
+                new ThreadPoolExecutor.DiscardPolicy()
+        );
+
+        Runnable listenerTask = () -> {
             while (!Thread.currentThread().isInterrupted()) {
+                DatagramPacket requestPacket = Utils.makePacketToReceive(requestBufferSize);
+
                 try {
-                    byte[] receiveBuffer = new byte[socket.getReceiveBufferSize()];
-                    DatagramPacket receivePacket = Utils.makePacketToReceive(receiveBuffer);
-                    socket.receive(receivePacket);
-
-                    String request = Utils.getStringFromPacket(receivePacket);
-
-                    //System.out.println("Request received: " + request);
-
-                    String response = "Hello, " + request;
-                    byte[] responseBuffer = response.getBytes(StandardCharsets.UTF_8);
-
-                    DatagramPacket packetToSend = Utils.makePacketToSend(
-                            responseBuffer,
-                            receivePacket.getSocketAddress()
+                    socket.receive(requestPacket);
+                    senders.submit(
+                            () -> sendResponse(requestPacket)
                     );
-
-                    socket.send(packetToSend);
-
                 } catch (IOException e) {
                     if (!closed) {
-                        System.err.println("Error working with datagram: " + e.getMessage());
+                        System.out.println("Error receiving datagram: " + e.getMessage());
                     }
                 }
             }
         };
 
-        Stream.iterate(0, i -> i + 1).limit(threads).forEach(i -> workers.submit(task));
+        listener.submit(listenerTask);
+    }
+
+    private void sendResponse(DatagramPacket requestPacket) {
+        String requestMessage = Utils.getStringFromPacket(requestPacket);
+        String responseMessage = "Hello, " + requestMessage;
+        byte[] responseBuffer = responseMessage.getBytes(StandardCharsets.UTF_8);
+        DatagramPacket responsePacket = Utils.makePacketToSend(responseBuffer, requestPacket.getSocketAddress());
+
+        try {
+            socket.send(responsePacket);
+        } catch (IOException e) {
+            if (!closed) {
+                System.out.println("Error sending datagram: " + e.getMessage());
+            }
+        }
     }
 
     @Override
     public void close() {
-        workers.shutdownNow();
+        listener.shutdownNow();
+
+        senders.shutdownNow();
+        try {
+            senders.awaitTermination(1, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+        }
+
         socket.close();
         closed = true;
     }

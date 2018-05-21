@@ -31,7 +31,6 @@ public class WebCrawler implements Crawler {
     private final int perHost;
     private final Map<String, Semaphore> hostInfo = new ConcurrentHashMap<>();
     private final Predicate<String> predicate;
-    private final Set<String> tasks = ConcurrentHashMap.newKeySet();
 
     public WebCrawler(Downloader downloader,
                       int downloaders, int extractors, int perHost) {

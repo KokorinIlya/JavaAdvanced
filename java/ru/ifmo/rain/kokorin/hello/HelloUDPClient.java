@@ -39,10 +39,9 @@ public class HelloUDPClient implements HelloClient {
         addTasks(address, port, prefix, threads, perThread);
 
         workers.shutdown();
-        while (!workers.isTerminated()) {
-            try {
-                workers.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
-            } catch (InterruptedException ignored) {}
+        try {
+            workers.awaitTermination(threads * perThread, TimeUnit.MINUTES);
+        } catch (InterruptedException ignored) {
         }
     }
 
@@ -57,8 +56,6 @@ public class HelloUDPClient implements HelloClient {
 
         InetSocketAddress addressAndPort = new InetSocketAddress(serverAddress, port);
 
-        System.out.println(addressAndPort);
-
         for (int i = 0; i < threads; i++) {
             final int threadNum = i;
 
@@ -66,8 +63,7 @@ public class HelloUDPClient implements HelloClient {
                 try (DatagramSocket socket = new DatagramSocket()) {
                     socket.setSoTimeout(TIMEOUT);
 
-                    byte[] bufferToReceive = new byte[socket.getReceiveBufferSize()];
-                    DatagramPacket packetToReceive = Utils.makePacketToReceive(bufferToReceive);
+                    DatagramPacket packetToReceive = Utils.makePacketToReceive(socket.getReceiveBufferSize());
 
                     for (int requestNum = 0; requestNum < perThread; requestNum++) {
 
@@ -96,12 +92,12 @@ public class HelloUDPClient implements HelloClient {
 
                                 if (!response.contains(request) || response.equals(request)) {
                                     System.out.println("Response rejected: " + response +
-                                    "\n________________");
+                                            "\n________________");
                                     continue;
                                 }
 
                                 System.out.println("Response accepted: " + response +
-                                "\n________________");
+                                        "\n________________");
                                 break;
                             } catch (IOException e) {
                                 System.err.println("Error receiving datagram: " + e.getMessage());

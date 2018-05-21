@@ -23,7 +23,8 @@ public class Utils {
         );
     }
 
-    public static DatagramPacket makePacketToReceive(byte[] buffer) {
-        return new DatagramPacket(buffer, buffer.length);
+    public static DatagramPacket makePacketToReceive(int bufferSize) {
+        byte[] receiveBuffer = new byte[bufferSize];
+        return new DatagramPacket(receiveBuffer, bufferSize);
     }
 }
