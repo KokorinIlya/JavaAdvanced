@@ -64,15 +64,13 @@ public class HelloUDPClient implements HelloClient {
                     socket.setSoTimeout(TIMEOUT);
 
                     DatagramPacket packetToReceive = Utils.makePacketToReceive(socket.getReceiveBufferSize());
+                    DatagramPacket requestPacket = new DatagramPacket(new byte[0], 0, 0, addressAndPort);
 
                     for (int requestNum = 0; requestNum < perThread; requestNum++) {
 
                         String request = prefix + threadNum + "_" + requestNum;
                         byte[] requestBuffer = request.getBytes(StandardCharsets.UTF_8);
-                        DatagramPacket requestPacket = Utils.makePacketToSend(
-                                requestBuffer,
-                                addressAndPort
-                        );
+                        requestPacket.setData(requestBuffer, 0, requestBuffer.length);
 
                         while (!Thread.currentThread().isInterrupted()) {
                             try {
