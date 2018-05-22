@@ -10,14 +10,15 @@ import info.kgeorgiy.java.advanced.crawler.URLUtils;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Phaser;
-import java.util.concurrent.Semaphore;
 import java.util.function.Predicate;
 
 public class WebCrawler implements Crawler {
@@ -25,38 +26,25 @@ public class WebCrawler implements Crawler {
     private final static String ERROR_MSG = "running:\n" +
             "WebCrawler url [depth [downloads [extractors [perHost]]]]";
 
-    private final ExecutorService downloadersThreadPool;
-    private final ExecutorService extractorsThreadPool;
     private final Downloader downloader;
     private final int perHost;
-    private final Map<String, Semaphore> hostInfo = new ConcurrentHashMap<>();
-    private final Predicate<String> predicate;
+    private final ExecutorService downloadersPool;
+    private final ExecutorService extractorsPool;
+    private final ConcurrentMap<String, HostTasksQueue> hostsInfo;
+    private final Predicate<String> needToDownload;
 
-    public WebCrawler(Downloader downloader,
-                      int downloaders, int extractors, int perHost) {
-        this(downloader, downloaders, extractors, perHost, s -> true);
-    }
-
-    public WebCrawler(Downloader downloader,
-                      int downloaders, int extractors, int perHost,
+    public WebCrawler(Downloader downloader, int downloaders, int extractors, int perHost,
                       Predicate<String> predicate) {
         this.downloader = downloader;
-        downloadersThreadPool = Executors.newFixedThreadPool(downloaders);
-        extractorsThreadPool = Executors.newFixedThreadPool(extractors);
         this.perHost = perHost;
-        this.predicate = predicate;
+        downloadersPool = Executors.newFixedThreadPool(downloaders);
+        extractorsPool = Executors.newFixedThreadPool(extractors);
+        needToDownload = predicate;
+        hostsInfo = new ConcurrentHashMap<>();
     }
 
-    @Override
-    public Result download(String url, int depth) {
-        final Set<String> processedAll = ConcurrentHashMap.newKeySet();
-        final Map<String, IOException> processedWithException = new ConcurrentHashMap<>();
-        Phaser waiter = new Phaser(0);
-        waiter.register();
-        downloadImpl(url, depth, processedAll, processedWithException, waiter);
-        waiter.arriveAndAwaitAdvance();
-        processedAll.removeAll(processedWithException.keySet());
-        return new Result(new ArrayList<>(processedAll), processedWithException);
+    public WebCrawler(Downloader downloader, int downloaders, int extractors, int perHost) {
+        this(downloader, downloaders, extractors, perHost, s -> true);
     }
 
     private Optional<String> getHost(String url, Map<String, IOException> errors) {
@@ -68,65 +56,81 @@ public class WebCrawler implements Crawler {
         }
     }
 
-    private void downloadImpl(String urlFrom, int depthLeft,
-                              Set<String> processed,
-                              Map<String, IOException> processedWithException,
-                              Phaser waiter) {
-        if (!predicate.test(urlFrom) || !processed.add(urlFrom)) {
+    private void downloadImpl(
+            String url,
+            int depthLeft,
+            Map<String, IOException> processedWithExceptions,
+            Set<String> processedAll,
+            Phaser waiter
+    ) {
+
+        if (!needToDownload.test(url) || !processedAll.add(url)) {
             return;
         }
 
-        getHost(urlFrom, processedWithException).ifPresent(
+        getHost(url, processedWithExceptions).ifPresent(
                 curHost -> {
+                    HostTasksQueue curQueue = hostsInfo.computeIfAbsent(
+                            curHost,
+                            hostName -> new HostTasksQueue(downloadersPool, perHost)
+                    );
+
                     Runnable downloadTask = () -> {
                         try {
-                            Document downloadedPage = downloader.download(urlFrom);
+                            Document curPage = downloader.download(url);
+                            processedAll.add(url);
 
-                            Runnable extractorTask = () -> {
-                                try {
-                                    if (depthLeft != 1) {
-                                        try {
-                                            downloadedPage.extractLinks()
-                                                    .forEach(curLink ->
-                                                            downloadImpl(
-                                                                    curLink, depthLeft - 1,
-                                                                    processed, processedWithException,
-                                                                    waiter
-                                                            )
-                                                    );
-                                        } catch (IOException e) {
-                                            processedWithException.put(urlFrom, e);
-                                        }
+                            if (depthLeft > 1) {
+                                Runnable extractTask = () -> {
+                                    try {
+                                        List<String> links = curPage.extractLinks();
+                                        links.forEach(
+                                                link -> downloadImpl(
+                                                        link,
+                                                        depthLeft - 1,
+                                                        processedWithExceptions,
+                                                        processedAll,
+                                                        waiter
+                                                )
+                                        );
+                                    } catch (IOException e) {
+                                        processedWithExceptions.put(url, e);
+                                    } finally {
+                                        waiter.arrive();
                                     }
-                                } finally {
-                                    waiter.arrive();
-                                }
-                            };
-
-                            waiter.register();
-                            extractorsThreadPool.submit(extractorTask);
+                                };
+                                waiter.register();
+                                extractorsPool.submit(extractTask);
+                            }
                         } catch (IOException e) {
-                            processedWithException.put(urlFrom, e);
+                            processedWithExceptions.put(url, e);
                         } finally {
                             waiter.arrive();
-                            hostInfo.get(curHost).release();
-                            // TODO add map: host -> tasks queue
-                            // Run another task for this host
+                            curQueue.runNextTask();
                         }
                     };
-                    hostInfo.computeIfAbsent(curHost, host -> new Semaphore(perHost));
-                    Semaphore semaphore = hostInfo.get(curHost);
-                    semaphore.acquireUninterruptibly();
                     waiter.register();
-                    downloadersThreadPool.submit(downloadTask);
+                    curQueue.addTask(downloadTask);
                 }
         );
     }
 
     @Override
+    public Result download(String url, int depth) {
+        ConcurrentHashMap<String, IOException> processedWithExceptions = new ConcurrentHashMap<>();
+        Set<String> processedAll = ConcurrentHashMap.newKeySet();
+        Phaser waiter = new Phaser();
+        waiter.register();
+        downloadImpl(url, depth, processedWithExceptions, processedAll, waiter);
+        waiter.arriveAndAwaitAdvance();
+        processedAll.removeAll(processedWithExceptions.keySet());
+        return new Result(new ArrayList<>(processedAll), processedWithExceptions);
+    }
+
+    @Override
     public void close() {
-        downloadersThreadPool.shutdownNow();
-        extractorsThreadPool.shutdownNow();
+        downloadersPool.shutdownNow();
+        extractorsPool.shutdownNow();
     }
 
     private static int getArg(String[] args, int index, int defaultValue) throws NumberFormatException {

@@ -7,9 +7,12 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -54,7 +57,7 @@ public class HelloUDPClient implements HelloClient {
             return;
         }
 
-        InetSocketAddress addressAndPort = new InetSocketAddress(serverAddress, port);
+        SocketAddress addressAndPort = new InetSocketAddress(serverAddress, port);
 
         for (int i = 0; i < threads; i++) {
             final int threadNum = i;
@@ -107,12 +110,12 @@ public class HelloUDPClient implements HelloClient {
                     System.err.println("Socket № " + threadNum + " cannot be created: " + e.getMessage());
                 }
 
-            };
 
+            };
             workers.submit(task);
         }
-
     }
+
 
     private final static String ERROR_MSG = "Running:\n" +
             "HelloUDPClient <host name or address> <port number> " +
