@@ -56,6 +56,47 @@ public class WebCrawler implements Crawler {
         }
     }
 
+    private void downloadTask(
+            String url,
+            int depthLeft,
+            Map<String, IOException> processedWithExceptions,
+            Set<String> processedAll,
+            Phaser waiter,
+            HostTasksQueue curQueue
+    ) {
+        try {
+            Document curPage = downloader.download(url);
+            processedAll.add(url);
+
+            if (depthLeft > 1) {
+                Runnable extractTask = () -> {
+                    try {
+                        curPage.extractLinks().forEach(
+                                link -> downloadImpl(
+                                        link,
+                                        depthLeft - 1,
+                                        processedWithExceptions,
+                                        processedAll,
+                                        waiter
+                                )
+                        );
+                    } catch (IOException e) {
+                        processedWithExceptions.put(url, e);
+                    } finally {
+                        waiter.arrive();
+                    }
+                };
+                waiter.register();
+                extractorsPool.submit(extractTask);
+            }
+        } catch (IOException e) {
+            processedWithExceptions.put(url, e);
+        } finally {
+            waiter.arrive();
+            curQueue.runNextTask();
+        }
+    }
+
     private void downloadImpl(
             String url,
             int depthLeft,
@@ -63,7 +104,6 @@ public class WebCrawler implements Crawler {
             Set<String> processedAll,
             Phaser waiter
     ) {
-
         if (!needToDownload.test(url) || !processedAll.add(url)) {
             return;
         }
@@ -75,42 +115,17 @@ public class WebCrawler implements Crawler {
                             hostName -> new HostTasksQueue(downloadersPool, perHost)
                     );
 
-                    Runnable downloadTask = () -> {
-                        try {
-                            Document curPage = downloader.download(url);
-                            processedAll.add(url);
-
-                            if (depthLeft > 1) {
-                                Runnable extractTask = () -> {
-                                    try {
-                                        List<String> links = curPage.extractLinks();
-                                        links.forEach(
-                                                link -> downloadImpl(
-                                                        link,
-                                                        depthLeft - 1,
-                                                        processedWithExceptions,
-                                                        processedAll,
-                                                        waiter
-                                                )
-                                        );
-                                    } catch (IOException e) {
-                                        processedWithExceptions.put(url, e);
-                                    } finally {
-                                        waiter.arrive();
-                                    }
-                                };
-                                waiter.register();
-                                extractorsPool.submit(extractTask);
-                            }
-                        } catch (IOException e) {
-                            processedWithExceptions.put(url, e);
-                        } finally {
-                            waiter.arrive();
-                            curQueue.runNextTask();
-                        }
-                    };
                     waiter.register();
-                    curQueue.addTask(downloadTask);
+                    curQueue.addTask(
+                            () -> downloadTask(
+                                    url,
+                                    depthLeft,
+                                    processedWithExceptions,
+                                    processedAll,
+                                    waiter,
+                                    curQueue
+                            )
+                    );
                 }
         );
     }
