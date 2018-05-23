@@ -8,10 +8,12 @@ class HostTasksQueue {
     private Queue<Runnable> tasksWaiting;
     private int freeTasks;
     private ExecutorService hostDownloaders;
+    private int perHost;
 
     HostTasksQueue(ExecutorService hostDownloaders, int perHost) {
         tasksWaiting = new ArrayDeque<>();
         freeTasks = perHost;
+        this.perHost = perHost;
         this.hostDownloaders = hostDownloaders;
     }
 
@@ -26,7 +28,7 @@ class HostTasksQueue {
 
     synchronized void runNextTask() {
         if (tasksWaiting.isEmpty()) {
-            freeTasks += 1;
+            freeTasks = Math.min(perHost, freeTasks + 1);
         } else {
             hostDownloaders.submit(tasksWaiting.poll());
         }

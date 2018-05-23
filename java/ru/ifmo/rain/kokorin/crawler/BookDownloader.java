@@ -9,6 +9,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.nio.channels.Pipe;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
@@ -216,7 +217,6 @@ public class BookDownloader {
                 Files.walkFileTree(dirForDownloadFiles, directoryCleaner);
             } catch (InvalidPathException e) {
                 System.err.println("Invalid path to download files " + e.getMessage());
-                return;
             } catch (IOException e) {
                 System.err.println("Error while cleaning directory " + e.getMessage());
             }

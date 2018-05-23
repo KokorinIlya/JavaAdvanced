@@ -11,11 +11,11 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class HelloUDPClient implements HelloClient {
 
@@ -48,6 +48,18 @@ public class HelloUDPClient implements HelloClient {
         }
     }
 
+    private boolean validResponse(String request, String response) {
+        if (!response.contains(request) || request.equals(response)) {
+            return false;
+        }
+        if (response.endsWith(request)) {
+            return true;
+        }
+        Pattern pattern = Pattern.compile(request + "\\s");
+        Matcher matcher = pattern.matcher(response);
+        return matcher.find();
+    }
+
     private void addTasks(String address, int port, String prefix, int threads, int perThread) {
         InetAddress serverAddress;
         try {
@@ -60,6 +72,8 @@ public class HelloUDPClient implements HelloClient {
         SocketAddress addressAndPort = new InetSocketAddress(serverAddress, port);
 
         for (int i = 0; i < threads; i++) {
+            System.err.println("Starting thread " + i);
+
             final int threadNum = i;
 
             Runnable task = () -> {
@@ -88,16 +102,16 @@ public class HelloUDPClient implements HelloClient {
                                 socket.receive(packetToReceive);
                                 String response = Utils.getStringFromPacket(packetToReceive);
 
-                                System.out.println("Request sent: " + request);
-                                System.out.println("Response received: " + response);
+                                System.err.println("Request sent: " + request);
+                                System.err.println("Response received: " + response);
 
-                                if (!response.contains(request) || response.equals(request)) {
-                                    System.out.println("Response rejected: " + response +
+                                if (!validResponse(request, response)) {
+                                    System.err.println("Response rejected: " + response +
                                             "\n________________");
                                     continue;
                                 }
 
-                                System.out.println("Response accepted: " + response +
+                                System.err.println("Response accepted: " + response +
                                         "\n________________");
                                 break;
                             } catch (IOException e) {
@@ -109,8 +123,6 @@ public class HelloUDPClient implements HelloClient {
                 } catch (SocketException e) {
                     System.err.println("Socket № " + threadNum + " cannot be created: " + e.getMessage());
                 }
-
-
             };
             workers.submit(task);
         }
@@ -124,7 +136,7 @@ public class HelloUDPClient implements HelloClient {
     public static void main(String[] args) {
         if (args == null || args.length != 5 ||
                 args[0] == null || args[1] == null || args[2] == null || args[3] == null || args[4] == null) {
-            System.out.println(ERROR_MSG);
+            System.err.println(ERROR_MSG);
             return;
         }
         String hostName = args[0];
