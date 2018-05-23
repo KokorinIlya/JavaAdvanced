@@ -1,7 +1,5 @@
 package ru.ifmo.rain.kokorin.concurrent;
 
-import javafx.util.Pair;
-
 import java.util.List;
 
 class ConcurrentUtils {
