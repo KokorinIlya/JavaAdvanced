@@ -1,3 +1,88 @@
+# Условия домашних заданий:
+
+## Домашнее задание 1. Обход файлов
+
+1. Разработайте класс Walk, осуществляющий подсчет хеш-сумм файлов.
+
+	- Формат запуска: <br>
+	*java Walk <входной файл> <выходной файл>*
+	
+	- Входной файл содержит список файлов, которые требуется обойти.
+	
+	- Выходной файл должен содержать по одной строке для каждого файла. Формат строки:<br>
+	<шестнадцатеричная хеш-сумма> <путь к файлу>
+	
+	- Для подсчета хеш-суммы используйте алгоритм [FNV](https://ru.wikipedia.org/wiki/FNV) 
+	
+	- Если при чтении файла возникают ошибки, укажите в качестве его хеш-суммы 00000000.
+	
+	- Кодировка входного и выходного файлов — UTF-8.
+	
+	- Размеры файлов могут превышать размер оперативной памяти.
+	
+	- Пример <br>
+
+		Входной файл
+
+                        java/info/kgeorgiy/java/advanced/walk/samples/1
+                        java/info/kgeorgiy/java/advanced/walk/samples/12
+                        java/info/kgeorgiy/java/advanced/walk/samples/123
+                        java/info/kgeorgiy/java/advanced/walk/samples/1234
+                        java/info/kgeorgiy/java/advanced/walk/samples/1
+                        java/info/kgeorgiy/java/advanced/walk/samples/binary
+                        java/info/kgeorgiy/java/advanced/walk/samples/no-such-file
+                    
+		Выходной файл
+
+                        050c5d2e java/info/kgeorgiy/java/advanced/walk/samples/1
+                        2076af58 java/info/kgeorgiy/java/advanced/walk/samples/12
+                        72d607bb java/info/kgeorgiy/java/advanced/walk/samples/123
+                        81ee2b55 java/info/kgeorgiy/java/advanced/walk/samples/1234
+                        050c5d2e java/info/kgeorgiy/java/advanced/walk/samples/1
+                        8e8881c5 java/info/kgeorgiy/java/advanced/walk/samples/binary
+                        00000000 java/info/kgeorgiy/java/advanced/walk/samples/no-such-file
+			
+2. Усложненная версия:
+
+	- Разработайте класс RecursiveWalk, осуществляющий подсчет хеш-сумм файлов в директориях
+	
+	- Входной файл содержит список файлов и директорий, которые требуется обойти. Обход директорий осуществляется рекурсивно.
+	
+	- Пример
+
+		Входной файл
+
+                        java/info/kgeorgiy/java/advanced/walk/samples/binary
+                        java/info/kgeorgiy/java/advanced/walk/samples
+                    
+		Выходной файл
+
+                        8e8881c5 java/info/kgeorgiy/java/advanced/walk/samples/binary
+                        050c5d2e java/info/kgeorgiy/java/advanced/walk/samples/1
+                        2076af58 java/info/kgeorgiy/java/advanced/walk/samples/12
+                        72d607bb java/info/kgeorgiy/java/advanced/walk/samples/123
+                        81ee2b55 java/info/kgeorgiy/java/advanced/walk/samples/1234
+                        8e8881c5 java/info/kgeorgiy/java/advanced/walk/samples/binary
+
+3. При выполнении задания следует обратить внимание на:
+	- Дизайн и обработку исключений, диагностику ошибок.
+	
+	- Программа должна корректно завершаться даже в случае ошибки.
+	
+	- Корректная работа с вводом-выводом.
+	
+	- Отсутствие утечки ресурсов.
+	
+4. Требования к оформлению задания.
+
+	- Проверяется исходный код задания.
+	
+	- Весь код должен находиться в пакете ru.ifmo.rain.фамилия.walk.
+	
+5. [Решение:](java/ru/ifmo/rain/kokorin/walk/)
+
+
+
 # Тесты к курсу «Технологии Java»
 
 [Условия домашних заданий](http://www.kgeorgiy.info/courses/java-advanced/homeworks.html)
